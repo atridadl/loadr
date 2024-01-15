@@ -2,16 +2,16 @@
 
 A lightweight REST load testing tool with rubust support for different verbs, token auth, and performance reports.
 
-## Example using source:
+## Example using source
 
 1. `go run main.go -rate=20 -max=100 -url=https://api.example.com/resource -type=POST -json=./data.json -token=YourBearerTokenHere`
 
-## Example using binary:
+## Example using binary
 
 1. go build
 2. `./loadr -rate=20 -max=100 -url=https://api.example.com/resource -type=POST -json=./data.json -token=YourBearerTokenHere`
 
-## Flags:
+## Flags
 
 - `-rate`: Number of requests per second. Default is 10.
 - `-max`: Maximum number of requests to send. Must be a non-zero integer. Default is 50.
