@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -15,9 +17,26 @@ import (
 // Global HTTP client used for making requests.
 var client = &http.Client{}
 
-// makeRequest sends an HTTP request with the specified verb, URL, bearer token, and JSON data.
-// It prints out the status code, response time, and response size.
-func makeRequest(verb, url, token string, jsonData []byte) {
+// PerformanceMetrics holds the metrics for performance evaluation.
+type PerformanceMetrics struct {
+	mu sync.Mutex // Protects the metrics
+
+	totalRequests    int32
+	totalResponses   int32
+	totalLatency     time.Duration
+	maxLatency       time.Duration
+	minLatency       time.Duration
+	responseCounters map[int]int32
+}
+
+// Initialize the metrics with default values.
+var metrics = PerformanceMetrics{
+	minLatency:       time.Duration(math.MaxInt64),
+	responseCounters: make(map[int]int32),
+}
+
+// makeRequest sends an HTTP request and updates performance metrics.
+func makeRequest(verb, url, token string, jsonData []byte, second int) {
 	startTime := time.Now()
 
 	// Create a new request with the provided verb, URL, and JSON data if provided.
@@ -50,15 +69,28 @@ func makeRequest(verb, url, token string, jsonData []byte) {
 	// Calculate the duration of the request.
 	duration := time.Since(startTime)
 
-	// Read the response body to determine its size.
-	body, err := io.ReadAll(resp.Body)
+	// Update the performance metrics.
+	metrics.mu.Lock()
+	metrics.totalRequests++
+	metrics.totalLatency += duration
+	if duration > metrics.maxLatency {
+		metrics.maxLatency = duration
+	}
+	if duration < metrics.minLatency {
+		metrics.minLatency = duration
+	}
+	if resp.StatusCode == http.StatusOK {
+		metrics.totalResponses++
+		metrics.responseCounters[second]++
+	}
+	metrics.mu.Unlock()
+
+	// Read the response body to determine its size (not shown in the output).
+	_, err = io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading response body:", err)
 		return
 	}
-
-	// Print out the request details.
-	fmt.Printf("Request Sent. Status Code: %d, Duration: %s, Response Size: %d bytes\n", resp.StatusCode, duration, len(body))
 }
 
 // readJSONFile reads the contents of the JSON file at the given path and returns the bytes.
@@ -72,7 +104,7 @@ func readJSONFile(filePath string) ([]byte, error) {
 func main() {
 	// Define command-line flags for configuring the load test.
 	requestsPerSecond := flag.Float64("rate", 10, "Number of requests per second")
-	maxRequests := flag.Int("max", 0, "Maximum number of requests to send (0 for unlimited)")
+	maxRequests := flag.Int("max", 50, "Maximum number of requests to send (0 for unlimited)")
 	url := flag.String("url", "https://example.com", "The URL to make requests to")
 	requestType := flag.String("type", "GET", "Type of HTTP request (GET, POST, PUT, DELETE, etc.)")
 	jsonFilePath := flag.String("json", "", "Path to the JSON file with request data")
@@ -80,6 +112,12 @@ func main() {
 
 	// Parse the command-line flags.
 	flag.Parse()
+
+	// Ensure maxRequests is greater than 0.
+	if *maxRequests <= 0 {
+		fmt.Println("Error: max must be an integer greater than 0")
+		return
+	}
 
 	// Read the JSON file if the path is provided.
 	jsonData, err := readJSONFile(*jsonFilePath)
@@ -96,19 +134,47 @@ func main() {
 	// Initialize the request count.
 	var requestCount int32 = 0
 
+	// Wait for all goroutines to finish.
+	var wg sync.WaitGroup
+
+	// Log beginning of requests
+	fmt.Println("Starting Loadr Requests...")
+
 	// Start sending requests at the specified rate.
+	startTime := time.Now()
 	for range ticker.C {
-		// Stop if the maximum number of requests is reached.
-		if *maxRequests > 0 && int(requestCount) >= *maxRequests {
+		second := int(time.Since(startTime).Seconds())
+		if int(requestCount) >= *maxRequests {
 			break
 		}
-		// Send the request in a new goroutine.
-		go func(u, t, verb string, data []byte) {
-			makeRequest(verb, u, t, data)
+		wg.Add(1)
+		go func(u, t, verb string, data []byte, sec int) {
+			defer wg.Done()
+			makeRequest(verb, u, t, data, sec)
 			atomic.AddInt32(&requestCount, 1)
-		}(*url, *bearerToken, strings.ToUpper(*requestType), jsonData)
+		}(*url, *bearerToken, strings.ToUpper(*requestType), jsonData, second)
 	}
 
-	// Print out the total number of requests sent after the load test is finished.
-	fmt.Printf("Finished sending requests. Total requests: %d\n", requestCount)
+	wg.Wait() // Wait for all requests to finish.
+
+	// Calculate and print performance metrics.
+	averageLatency := time.Duration(0)
+	if metrics.totalRequests > 0 {
+		averageLatency = metrics.totalLatency / time.Duration(metrics.totalRequests)
+	}
+
+	totalDuration := time.Since(startTime).Seconds()
+	totalResponses := int32(0)
+	for _, count := range metrics.responseCounters {
+		totalResponses += count
+	}
+
+	fmt.Printf("Performance Metrics:\n")
+	fmt.Printf("Total Requests Sent: %d\n", metrics.totalRequests)
+	fmt.Printf("Total Responses Received: %d\n", totalResponses)
+	fmt.Printf("Average Latency: %s\n", averageLatency)
+	fmt.Printf("Max Latency: %s\n", metrics.maxLatency)
+	fmt.Printf("Min Latency: %s\n", metrics.minLatency)
+	fmt.Printf("Requests Per Second (Sent): %.2f\n", float64(*requestsPerSecond))
+	fmt.Printf("Responses Per Second (Received): %.2f\n", float64(totalResponses)/totalDuration)
 }
