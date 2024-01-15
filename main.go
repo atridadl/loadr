@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -169,12 +170,36 @@ func main() {
 		totalResponses += count
 	}
 
-	fmt.Printf("Performance Metrics:\n")
-	fmt.Printf("Total Requests Sent: %d\n", metrics.totalRequests)
-	fmt.Printf("Total Responses Received: %d\n", totalResponses)
-	fmt.Printf("Average Latency: %s\n", averageLatency)
-	fmt.Printf("Max Latency: %s\n", metrics.maxLatency)
-	fmt.Printf("Min Latency: %s\n", metrics.minLatency)
-	fmt.Printf("Requests Per Second (Sent): %.2f\n", float64(*requestsPerSecond))
-	fmt.Printf("Responses Per Second (Received): %.2f\n", float64(totalResponses)/totalDuration)
+	// Format the results
+	results := fmt.Sprintln("Performance Metrics:")
+	results += fmt.Sprintf("Total Requests Sent: %d\n", metrics.totalRequests)
+	results += fmt.Sprintf("Total Responses Received: %d\n", totalResponses)
+	results += fmt.Sprintf("Average Latency: %s\n", averageLatency)
+	results += fmt.Sprintf("Max Latency: %s\n", metrics.maxLatency)
+	results += fmt.Sprintf("Min Latency: %s\n", metrics.minLatency)
+	results += fmt.Sprintf("Requests Per Second (Sent): %.2f\n", float64(*requestsPerSecond))
+	results += fmt.Sprintf("Responses Per Second (Received): %.2f\n", float64(totalResponses)/totalDuration)
+
+	// Print the results to the console
+	fmt.Print(results)
+
+	// Ensure the .reports directory exists
+	reportsDir := ".reports"
+	if _, err := os.Stat(reportsDir); os.IsNotExist(err) {
+		err := os.Mkdir(reportsDir, 0755)
+		if err != nil {
+			fmt.Println("Error creating reports directory:", err)
+			return
+		}
+	}
+
+	// Save the results to a file in the .reports directory
+	timestamp := time.Now().Format("20060102-150405") // YYYYMMdd-HHmmss format
+	fileName := fmt.Sprintf("%s.txt", timestamp)
+	filePath := filepath.Join(reportsDir, fileName)
+	if err := os.WriteFile(filePath, []byte(results), 0644); err != nil {
+		fmt.Println("Error writing results to file:", err)
+		return
+	}
+
 }

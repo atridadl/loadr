@@ -1,6 +1,6 @@
 # Loadr
 
-A lightweight REST load testing tool with rubust support for different verbs, token auth, and stats.
+A lightweight REST load testing tool with rubust support for different verbs, token auth, and performance reports.
 
 Example using source:
 
