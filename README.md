@@ -13,6 +13,7 @@ A lightweight REST load testing tool with robust support for different verbs, to
 
 ## Flags
 
+- `-v` or `-version: Prints the version of Loadr.
 - `-rate`: Number of requests per second. Default is 10.
 - `-max`: Maximum number of requests to send. Must be a non-zero integer. Default is 50.
 - `-url`: The URL to make requests to. Default is "https://example.com".
