@@ -22,4 +22,4 @@ A lightweight REST load testing tool with robust support for different verbs, to
 
 ## Reports
 
-Reports are logged at the end of a test run. They are also saved in a directory called `.reports`. All reports are saved as text files with `YYYYMMdd-HHmmss` time format names.
+Reports are logged at the end of a test run. They are also saved in a directory called `.reports`. All reports are saved as text files with names corresponding to the unix timestamp of when they were completed.
