@@ -7,7 +7,8 @@ import (
 	"os"
 )
 
-// parseCommandLine parses the command-line flags and returns the parsed values.
+var version string = "1.0.1"
+
 func parseCommandLine() (float64, int, string, string, string, string) {
 	requestsPerSecond := flag.Float64("rate", 10, "Number of requests per second")
 	maxRequests := flag.Int("max", 50, "Maximum number of requests to send (0 for unlimited)")
@@ -15,9 +16,17 @@ func parseCommandLine() (float64, int, string, string, string, string) {
 	requestType := flag.String("type", "GET", "Type of HTTP request (GET, POST, PUT, DELETE, etc.)")
 	jsonFilePath := flag.String("json", "", "Path to the JSON file with request data")
 	bearerToken := flag.String("token", "", "Bearer token for authorization")
+	versionFlag := flag.Bool("version", false, "Print the version and exit")
+	versionFlagShort := flag.Bool("v", false, "Print the version and exit")
 
 	// Parse the command-line flags.
 	flag.Parse()
+
+	// If the version flag is present, print the version number and exit.
+	if *versionFlag || *versionFlagShort {
+		fmt.Println("Version:", version)
+		os.Exit(0)
+	}
 
 	return *requestsPerSecond, *maxRequests, *url, *requestType, *jsonFilePath, *bearerToken
 }
