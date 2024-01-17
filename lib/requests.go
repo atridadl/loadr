@@ -13,11 +13,7 @@ import (
 // Global HTTP client used for making requests.
 var client = &http.Client{}
 
-type RequestError struct {
-	Verb string
-	URL  string
-	Err  error
-}
+
 
 func (e *RequestError) Error() string {
 	return fmt.Sprintf("error making %s request to %s: %v", e.Verb, e.URL, e.Err)
