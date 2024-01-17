@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var version string = "1.0.1"
+var version string = "1.0.2"
 
 func parseCommandLine() (float64, int, string, string, string, string) {
 	requestsPerSecond := flag.Float64("rate", 10, "Number of requests per second")
